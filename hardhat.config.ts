@@ -9,35 +9,33 @@ const config: HardhatUserConfig = {
   
   solidity: {
     compilers: [
-      {
-        version: '0.4.1',
-        settings: {
-          viaIR: true,
-          optimizer: {
-            enabled: true,
-            runs: 20000,
-          },
-        },
-      },
-      {
-        version: '0.5.0',
-        settings: {
-          viaIR: true,
+      // {
+      //   version: '0.4.1',
+      //   settings: {
+      //     viaIR: true,
+      //     optimizer: {
+      //       enabled: true,
+      //       runs: 20000,
+      //     },
+      //   },
+      // },
+      // {
+      //   version: '0.5.0',
+      //   settings: {
+      //     viaIR: true,
 
-          optimizer: {
-            enabled: true,
-            runs: 20000,
-          },
-        },
-      },
+      //     optimizer: {
+      //       enabled: true,
+      //       runs: 20000,
+      //     },
+      //   },
+      // },
       {
         version: '0.7.6',
         settings: {
-          viaIR: true,
-
           optimizer: {
             enabled: true,
-            runs: 20000,
+            runs: 200,
           },
         },
       },
@@ -48,7 +46,7 @@ const config: HardhatUserConfig = {
 
           optimizer: {
             enabled: true,
-            runs: 20000,
+            runs: 200,
           },
         },
       },
@@ -59,7 +57,7 @@ const config: HardhatUserConfig = {
 
           optimizer: {
             enabled: true,
-            runs: 20000,
+            runs: 200,
           },
         },
       },
@@ -70,7 +68,7 @@ const config: HardhatUserConfig = {
 
           optimizer: {
             enabled: true,
-            runs: 20000,
+            runs: 200,
           },
         },
       },
@@ -81,7 +79,7 @@ const config: HardhatUserConfig = {
 
           optimizer: {
             enabled: true,
-            runs: 20000,
+            runs: 200,
           },
         },
       },
@@ -105,12 +103,12 @@ const config: HardhatUserConfig = {
         mnemonic: "test test test test test test test test test test test junk", // Default Hardhat accounts
       },
       forking: {
-        url: `https://mainnet.infura.io/v3/e71d39d9d58b4736ae7dcba730bc1f18`, // RPC URL from which to fork
-        blockNumber: 20986456, // Specify the block number to fork from
+        // url: `https://mainnet.infura.io/v3/e71d39d9d58b4736ae7dcba730bc1f18`,
+        url : 'https://42026.rpc.thirdweb.com/0083eb2fc14e0e0d48af8e4c820233fc',
       },
     },
     donatuz: {
-      url: `https://42026.rpc.thirdweb.com/${process.env.THIRDWEB_API_KEY}`,
+      url: `https://42026.rpc.thirdweb.com/koP8LkWMgiAIv1MGd7KWNNXYSY2kaBLMEAskEyT84Zsd_tWWYInckFLNgnf9PMaYXr54UbhQLN63-CZtgT9hQg`,
       chainId: 42026,
       accounts: [`${process.env.PRIVATE_KEY}`],
     },
