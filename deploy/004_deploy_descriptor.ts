@@ -17,7 +17,7 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   console.log(`the deployer is a ${deployer}`)
   const nftDescriptorLibrary = await deploy("NFTDescriptor", {
     from: deployer,
-    args: [], // Constructor arguments if any
+    args: [], 
     log: true,
   });
   const descriptorAddress = nftDescriptorLibrary.address;
@@ -27,14 +27,19 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   // Deploy the Lock contract
   const descriptor = await deploy("NonfungibleTokenPositionDescriptor", {
     from: deployer,
-    args: ["0x4200000000000000000000000000000000000006"] ,// Pass the calculated unlockTime
+    args: ["0x4200000000000000000000000000000000000006"] ,
     libraries: {
-        NFTDescriptor: descriptorAddress, // Link the library address
+        NFTDescriptor: descriptorAddress, 
       },
     log: true,
-    // gasLimit: 30000000 // Set an appropriate gas limit
+    // gasLimit: 30000000 
 
   });
+  if(descriptor.address == undefined){
+    throw new Error("descriptorAddress contract not found in the contracts array in file.");
+
+  }
+  console.log(`====== the descriptor address is ${descriptor.address}====`)
   contracts.push({name:"NonfungibleTokenPositionDescriptor",address:descriptor.address})
 };
 

@@ -11,23 +11,31 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const { deploy } = deployments;
 
   // Get the deployer and tokenOwner accounts
-  let factoryAddress;
-  let descriptorAddress;
+  let factoryAddress = await deployments.get("UniswapV3Factory");
+    let descriptorAddress ;
+    console.log("the descripto address is ", descriptorAddress)
+
+  // let descriptorAddress = await deployments.get("NonfungibleTokenPositionDescriptor");
+  // for (const contract of contracts) {
+  //   if (contract.name === "UniswapV3Factory") {
+  //     factoryAddress = contract.address;
+  //     break; // Exit the loop once found
+  //   }
+  // }
   for (const contract of contracts) {
-    if (contract.name === "UniswapV3Factory") {
-      factoryAddress = contract.address;
-      break; // Exit the loop once found
-    }
-  }
-  for (const contract of contracts) {
-    if (contract.name === "NonfungibleTokenPositionDescriptor") {
+    if (contract.name == "NonfungibleTokenPositionDescriptor") {
         descriptorAddress = contract.address;
+        console.log("the descripto address is in side loop", descriptorAddress)
+
       break; // Exit the loop once found
     }
   }
   
-  if (!factoryAddress || !descriptorAddress) {
+  if (!factoryAddress.address ) {
     throw new Error("UniswapV3Factory contract not found in the contracts array.");
+  }
+  if(!descriptorAddress || descriptorAddress == undefined){
+    throw new Error("descriptorAddress contract not found in the contracts array.");
   }
   const { deployer, tokenOwner } = await getNamedAccounts();
   console.log(`the deployer is a ${deployer}`)
@@ -39,7 +47,7 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   // Deploy the Lock contract
   await deploy("NonfungiblePositionManager", {
     from: deployer,
-    args: [factoryAddress,weth,descriptorAddress], // Pass the calculated unlockTime
+    args: [factoryAddress.address,weth,descriptorAddress], // Pass the calculated unlockTime
     log: true,
     gasLimit: 30000000 // Set an appropriate gas limit
 

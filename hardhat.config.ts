@@ -4,8 +4,13 @@ import 'hardhat-deploy-ethers';
 import dotenv from "dotenv";
 dotenv.config();
 import { extendEnvironment} from 'hardhat/config'
+// import "hardhat-tracer";
 
 const config: HardhatUserConfig = {
+  // tracer: {
+  //   enabled: true,
+  //   // Additional tracer configurations can be added here
+  // },
   
   solidity: {
     compilers: [
@@ -30,6 +35,24 @@ const config: HardhatUserConfig = {
       //     },
       //   },
       // },
+      {
+        version: '0.6.0',
+        settings: {
+          optimizer: {
+            enabled: true,
+            runs: 200,
+          },
+        },
+      },
+      {
+        version: '0.7.0',
+        settings: {
+          optimizer: {
+            enabled: true,
+            runs: 200,
+          },
+        },
+      },
       {
         version: '0.7.6',
         settings: {
