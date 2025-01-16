@@ -41,7 +41,7 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   console.log(`the deployer is a ${deployer}`)
   
   const weth = process.env.WETH_ADDRESS;
-  console.log("the factory deplyed is at address",factoryAddress);
+  console.log("the factory deplyed is at address",factoryAddress.address);
   console.log(`the token descriptor contract is deployed at ${descriptorAddress}`);
  
   // Deploy the Lock contract
