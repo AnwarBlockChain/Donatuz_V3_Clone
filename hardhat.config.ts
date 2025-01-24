@@ -11,6 +11,9 @@ const config: HardhatUserConfig = {
   //   enabled: true,
   //   // Additional tracer configurations can be added here
   // },
+  mocha: {
+    timeout: 4000000, // 100 seconds
+  },
   
   solidity: {
     compilers: [
@@ -131,8 +134,8 @@ const config: HardhatUserConfig = {
       },
     },
     donatuz: {
-      url: `https://42026.rpc.thirdweb.com/koP8LkWMgiAIv1MGd7KWNNXYSY2kaBLMEAskEyT84Zsd_tWWYInckFLNgnf9PMaYXr54UbhQLN63-CZtgT9hQg`,
-      chainId: 42026,
+      url: `https://42019.rpc.thirdweb.com/${process.env.THIRDWEB_API_KEY}`,
+      chainId: 42019,
       accounts: [`${process.env.PRIVATE_KEY}`],
     },
     polygon: {

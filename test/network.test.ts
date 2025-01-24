@@ -2,10 +2,12 @@ import { deployments, ethers, getNamedAccounts } from "hardhat";
 import { expect } from "chai";
 import { ABI_WETH } from "../utils/wethAbi";
 import { exportedHre } from "../hardhat.config"; // Import the exported hre
-import { BaseContract, BigNumberish, MaxUint256 } from "ethers";
+import { BaseContract, BigNumberish, MaxUint256, solidityPacked } from "ethers";
 import { abi } from "@uniswap/v3-core/artifacts/contracts/UniswapV3Pool.sol/UniswapV3Pool.json";
-import { json } from "hardhat/internal/core/params/argumentTypes";
-import { TickMath } from "@uniswap/v3-sdk";
+import { abi as abii } from "../artifacts/src/QuoterV2.sol/QuoterV2.json";
+import { get_Sqrt_Ratio, getPoolSqrtAndTicks } from "../utils/getSqrtRatio";
+import BigNumber from "bignumber.js";
+import { Route } from "@uniswap/v3-sdk";
 
 let hre: any;
 let factoryContract: any;
@@ -15,6 +17,7 @@ let swapRouter: any;
 let positionManager: any;
 let deployerr: any;
 let quoter: any;
+let tokenIdNft:any;
 async function main() {
   hre = await exportedHre; // Await the dynamic import
   console.log("Current Network:", hre.network.name);
@@ -142,6 +145,7 @@ describe.only("Contract Interaction Test", function () {
 
   //   const WETH_amount = 1000; // Token1 amount with 0 decimals
   //   const SqrtPriceX96 = BigInt(Math.sqrt(WETH_amount / yourToken_amount) * 2 ** 96);
+  //   console.log(`the sqrt price for the token is in first pool creation is ${SqrtPriceX96}`)
   // })
 
   it("should create pool with the if necessary function and mint Position", async () => {
@@ -149,12 +153,14 @@ describe.only("Contract Interaction Test", function () {
     const managerDeployment = await deployments.get(
       "NonfungiblePositionManager"
     );
+    const quoterDeployment = await deployments.get("QuoterV2");
+
     const NDeployment = await deployments.get("TokenN");
     const MDeployment = await deployments.get("TokenM");
     const swapRouterAddress = await deployments.get("SwapRouter");
-    const sqrt = TickMath.getSqrtRatioAtTick(10);
-    const sqrtRatioX96: BigNumberish = sqrt.toString();
-    console.log("the sqrttt ratio is ", sqrtRatioX96);
+    const sqrt = await get_Sqrt_Ratio(10);
+
+    console.log("the sqrttt ratio is ", sqrt);
 
     console.log("the sqrt ratio is ", sqrt);
     const positionAddress = managerDeployment.address;
@@ -163,15 +169,21 @@ describe.only("Contract Interaction Test", function () {
     //   console.log(`the positonManager address is A ${positionAddress}`)
     //   const approvalAmount = ethers.parseUnits("1000", 18); // Example: approve 1000 tokens
     console.log("before initializing the pool etc ");
+    const { sqrtPriceX96, adjustedTickLower, adjustedTickUpper } =
+      getPoolSqrtAndTicks(0.9, 5, 18, 18, 10);
+    const [token0, token1] = [NDeployment.address, MDeployment.address].sort();
+
     const pool = await positionManager.createAndInitializePoolIfNecessary(
-      NDeployment.address,
-      MDeployment.address,
+      token0,
+      token1,
       500,
-      sqrtRatioX96
+      sqrtPriceX96.toString()
     );
-    console.log(`the pool has been created with a address of ${pool}`);
+    console.log(
+      `the pool has been created with`
+    );
     // console.log(`after creating a pool it has returned address of ${pool}`)
-    const approvalAmount = ethers.parseUnits("1000", 18); // Example: approve 1000 tokens
+    const approvalAmount = ethers.parseUnits("100000", 18); // Example: approve 1000 tokens
 
     const approveTokenM = await tokenM.approve(positionAddress, approvalAmount);
     await approveTokenM.wait();
@@ -179,27 +191,36 @@ describe.only("Contract Interaction Test", function () {
 
     const approveTokenN = await tokenN.approve(positionAddress, approvalAmount);
     await approveTokenN.wait();
-    const tickLower = -887220; // Lower tick (e.g., for a range of 0.5%)
-    const tickUpper = 887220; // Upper tick
-    const amountA = ethers.parseUnits("1000", 18); // Amount of tokenA
-    const amountB = ethers.parseUnits("1000", 18); // Amount of tokenB
+    const tickLowerr = -887220; // Lower tick (e.g., for a range of 0.5%)
+    const tickUpperr = 887220; // Upper tick
+    const amountA = ethers.parseUnits("100000", 18); // Amount of tokenA
+    const amountB = ethers.parseUnits("990000", 18); // Amount of tokenB
     const amountAmin = ethers.parseUnits("900", 18); // Minimum amount of tokenA (slippage control)
     const amountBmin = ethers.parseUnits("900", 18); // Minimum amount of tokenB (slippage control)
     const userAddress = deployerr; // User's address (could be any Ethereum address)
     const deadline = Math.floor(Date.now() / 1000) + 60;
     const Nsymbol = await tokenN.symbol();
     const Msymbol = await tokenM.symbol();
+    const poolAddress = await factoryContract.getPool(token0, token1, 500);
+    console.log(
+      `=========================== Checking POOL ADDRESS =========================== `
+    );
+    console.log(`the pool address is ${poolAddress}`);
+    // const { lowerTick, upperTick } = await calculateTicks(20,poolAddress)
+    // console.log(`the tick upper is ${upperTick} and lower is ${lowerTick}`);
 
     console.log(`the symbol of n & m are ${Nsymbol} & ${Msymbol}`);
-
     console.log(`before position mint try ====>>`);
     console.log(`the address of position manage is ${positionAddress}`);
-    const positionMinting = await positionManager.mint({
-      token0: NDeployment.address,
-      token1: MDeployment.address,
+    const {   tokenId,
+       liquidity,
+       amount0,
+       amount1} = await positionManager.mint({
+      token0: token0,
+      token1: token1,
       fee: 500,
-      tickLower: -276480,
-      tickUpper: 276480,
+      tickLower: adjustedTickLower,
+      tickUpper: adjustedTickUpper,
       amount0Desired: amountA,
       amount1Desired: amountB,
       amount0Min: amountAmin,
@@ -207,15 +228,16 @@ describe.only("Contract Interaction Test", function () {
       recipient: userAddress,
       deadline: deadline,
     });
-    await positionMinting.wait();
+    console.log("Starting...");
+// setTimeout(() => {
+//   console.log("Waited 4 seconds");
+//   // Add the next code to execute here
+// }, 9000);
+    
+    tokenIdNft = tokenId;
+    console.log(`== the nft id is of position is ${tokenIdNft}`)
 
-    console.log(
-      `the position has been minted and is now ${JSON.stringify(
-        positionMinting,
-        null,
-        2
-      )}`
-    );
+   
     const approval = await tokenM.approve(
       swapRouterAddress.address,
       MaxUint256
@@ -240,7 +262,7 @@ describe.only("Contract Interaction Test", function () {
 
     const path = ethers.solidityPacked(
       ["address", "uint24", "address"],
-      [NDeployment.address, 500, MDeployment.address] // WETH -> DAI with a fee of 500 (0.05%)
+      [NDeployment.address, 500, MDeployment.address] // )
     );
     // const swapRouter = new ethers.Contract(
     //   swapRouterAddress.address,
@@ -267,20 +289,384 @@ describe.only("Contract Interaction Test", function () {
     );
     console.log(`the swap has been executed succesfully`);
   });
-});
 
-it("should get the quotes for the swaps", async () => {
-  const NDeployment = await deployments.get("TokenN");
-  const MDeployment = await deployments.get("TokenM");
-  const nAddress = NDeployment.address;
-  const mAddress = MDeployment.address;
-  const fee = 500;
-  const amountIn = ethers.parseUnits("100", 18);
-  const path = ethers.solidityPacked(
-    ["address", "uint24", "address"],
-    [mAddress, 500,nAddress] // WETH -> DAI with a fee of 500 (0.05%)
-  );
-  const quote = await quoter.quoteExactOutput(path,amountIn);
-  console.log(`the result of the quote is ${quote}`)
+  it("should get the quotes for the swaps", async () => {
+    const NDeployment = await deployments.get("TokenN");
+    const MDeployment = await deployments.get("TokenM");
+    const quoterDeployment = await deployments.get("QuoterV2");
+    const quoterABI = [
+      {
+        inputs: [
+          {
+            internalType: "bytes",
+            name: "path",
+            type: "bytes",
+          },
+          {
+            internalType: "uint256",
+            name: "amountOut",
+            type: "uint256",
+          },
+        ],
+        name: "quoteExactOutput",
+        outputs: [
+          {
+            internalType: "uint256",
+            name: "amountIn",
+            type: "uint256",
+          },
+          {
+            internalType: "uint160[]",
+            name: "sqrtPriceX96AfterList",
+            type: "uint160[]",
+          },
+          {
+            internalType: "uint32[]",
+            name: "initializedTicksCrossedList",
+            type: "uint32[]",
+          },
+          {
+            internalType: "uint256",
+            name: "gasEstimate",
+            type: "uint256",
+          },
+        ],
+        stateMutability: "nonpayable",
+        type: "function",
+      },
+    ];
+    const quoterAddress = quoterDeployment.address;
+    console.log(`the quoter address is ${quoterAddress}`);
+    const quoterr = new ethers.Contract(
+      quoterAddress,
+      quoterABI,
+      ethers.provider
+    );
 
+    const nAddress = NDeployment.address;
+    const mAddress = MDeployment.address;
+    const fee = 500;
+    const amountInn = ethers.parseUnits("10000", 18);
+    const path = ethers.solidityPacked(
+      ["address", "uint24", "address"],
+      [nAddress, 500, mAddress] // WETH -> DAI with a fee of 500 (0.05%)
+    );
+    // const pathh = ethers.concat([
+    //   "0xTOKEN_A_ADDRESS", // Input token
+    //   ethers.hexlify(3000), // Fee (e.g., 0.3% = 3000)
+    //   "0xTOKEN_B_ADDRESS"  // Output token
+    // ]);
+    console.log(`the encoded path is ${path}`);
+    const weth = await quoter.WETH9();
+    console.log(`the weth address in quoter is ${weth}`);
+    const params = {
+      tokenIn: nAddress,
+      tokenOut: mAddress,
+      amountIn: amountInn,
+      fee: 500,
+      sqrtPriceLimitX96: 0,
+    };
+    const amountOut = ethers.parseUnits("1.0", 18); // Replace with the desired amount and token decimals
+    const getPool = await quoter.getPool(nAddress, mAddress, fee);
+    console.log(`the pool address found is ${getPool}`);
+    // const quote = await quoter.quoteExactOutput(path,amountIn);
+    //@ts-ignore
+    const quote = await quoterr.quoteExactOutput.staticCall(path, amountOut);
+    console.log(`the over all quote returned is ${quote}`);
+    const {
+      amountIn,
+      sqrtPriceX96AfterList,
+      initializedTicksCrossedList,
+      gasEstimate,
+    } = quote;
+    console.log(`the quote is ${amountIn}`);
+
+    console.log(`the result of the quote is ${quote}`);
+    //pool
+    const poolContract = new ethers.Contract(getPool, abi, ethers.provider);
+
+    const slot0 = await poolContract.slot0();
+    const currentPrice = slot0[0]; // This returns the price as a scaled integer (1e18)
+    const currentTick = slot0[1];
+
+    console.log(`Current sqrtPriceX96: ${slot0[0]}`);
+    console.log(`Current tick: ${slot0[1]}`);
+
+    const liquidity = await poolContract.liquidity();
+    const feee = await poolContract.fee();
+
+    console.log(`Current liquidity: ${liquidity}`);
+    console.log(`Pool fee: ${feee}`);
+    console.log(`the address of the pool that has been created is ${getPool}`);
+  });
+  it("should test the exactInput and quoteExactInput", async () => {
+    const NDeployment = await deployments.get("TokenN");
+    const MDeployment = await deployments.get("TokenM");
+    const SwapRouter = await deployments.get("SwapRouter");
+    const path = ethers.solidityPacked(
+      ["address", "uint24", "address"],
+      [NDeployment.address, 500, MDeployment.address] // WETH -> DAI with a fee of 500 (0.05%)
+    );
+    const amountIn = ethers.parseUnits("0.7", 18);
+    console.log(`the amountIn is ${amountIn}`);
+    const {
+      amountOut,
+      sqrtPriceX96AfterList,
+      initializedTicksCrossedList,
+      gasEstimate,
+    } = await quoter.quoteExactInput.staticCall(path, amountIn);
+    //   struct ExactInputParams {
+    //     bytes path;
+    //     address recipient;
+    //     uint256 deadline;
+    //     uint256 amountIn;
+    //     uint256 amountOutMinimum;
+    // }
+    console.log(`the quote for quoteExactInput is ${amountOut}`);
+    const approve = await tokenN.approve(SwapRouter.address, amountIn);
+    const params = {
+      path: path,
+      recipient: deployerr,
+      deadline: Math.floor(Date.now() / 1000) + 120,
+      amountIn: amountIn,
+      amountOutMinimum: amountOut,
+    };
+    const swap = await swapRouter.exactInput(params);
+    console.log(
+      `the swap has been executed succesfully and the return amount is ${swap}`
+    );
+  });
+
+  it("should test exactInputSingle and quote for quoteExactInputSingle", async () => {
+    const NDeployment = await deployments.get("TokenN");
+    const MDeployment = await deployments.get("TokenM");
+    const SwapRouter = await deployments.get("SwapRouter");
+    const deadline = Math.floor(Date.now() / 1000) + 120;
+    const getPool = await quoter.getPool(
+      NDeployment.address,
+      MDeployment.address,
+      500
+    );
+    const poolContract = new ethers.Contract(getPool, abi, ethers.provider);
+
+    const slot0 = await poolContract.slot0();
+    const currentPrice = slot0[0]; // This returns the price as a scaled integer (1e18)
+    const currentTick = slot0[1];
+    // const newSqrtPriceLimit = BigNumber(slot0[0].toString()).div(2 ** 28).toFixed(0);
+    const newSqrtPriceLimit = BigNumber(slot0[0].toString())
+      .times(1.1) // Allow for 10% price movement upward
+      .toFixed(0);
+    console.log(`the new sqrtPriceLimit is ${newSqrtPriceLimit}`);
+
+    console.log(`Current sqrtPriceX96: ${slot0[0]}`);
+    console.log(`Current tick: ${slot0[1]}`);
+    const amountIn = ethers.parseUnits("50", 18);
+    const quoteParams = {
+      tokenIn: NDeployment.address,
+      tokenOut: MDeployment.address,
+      amountIn: amountIn,
+      fee: 500,
+      sqrtPriceLimitX96: newSqrtPriceLimit,
+    };
+    console.log(`calling the quoter`);
+    const {
+      amountOut,
+      sqrtPriceX96After,
+      initializedTicksCrossed,
+      gasEstimate,
+    } = await quoter.quoteExactInputSingle.staticCall(quoteParams);
+    console.log(
+      `the quote for exactInputSingle is ${amountOut} and new sqrtPrice is ${sqrtPriceX96After}`
+    );
+    const adjustedAmountOutMinimum = BigNumber(amountOut)
+      .times(0.99) // Allow for up to 1% slippage
+      .toFixed(0);
+
+    const swapParams = {
+      tokenIn: NDeployment.address,
+      tokenOut: MDeployment.address,
+      fee: 500,
+      recipient: deployerr,
+      deadline: deadline,
+      amountIn: amountIn,
+      amountOutMinimum: adjustedAmountOutMinimum,
+      sqrtPriceLimitX96: newSqrtPriceLimit,
+    };
+    const approval = await tokenN.approve(SwapRouter.address, amountIn);
+    const swap = await swapRouter.exactInputSingle(swapParams);
+    console.log(`the swap has been executed succesfully`);
+
+    //   struct QuoteExactInputSingleParams {
+    //     address tokenIn;
+    //     address tokenOut;
+    //     uint256 amountIn;
+    //     uint24 fee;
+    //     uint160 sqrtPriceLimitX96;
+    // }
+
+    //   struct ExactInputSingleParams {
+    //     address tokenIn;
+    //     address tokenOut;
+    //     uint24 fee;
+    //     address recipient;
+    //     uint256 deadline;
+    //     uint256 amountIn;
+    //     uint256 amountOutMinimum;
+    //     uint160 sqrtPriceLimitX96;
+    // }
+  });
+
+  it("should test the quoteExactOutPutSingle and exactOutputSingle", async () => {
+    const quoterr = await deployments.get("QuoterV2");
+    const token = await deployments.get("TokenN");
+    const tokenM = await deployments.get("TokenM");
+    const getPool = await quoter.getPool(token.address, tokenM.address, 500);
+    const poolContract = new ethers.Contract(getPool, abi, ethers.provider);
+
+    const slot0 = await poolContract.slot0();
+    const currentPrice = slot0[0]; // This returns the price as a scaled integer (1e18)
+    const currentTick = slot0[1];
+    // const newSqrtPriceLimit = BigNumber(slot0[0].toString()).div(2 ** 28).toFixed(0);
+    const newSqrtPriceLimit = BigNumber(slot0[0].toString())
+      .times(1.1) // Allow for 10% price movement upward
+      .toFixed(0);
+    console.log(`the new sqrtPriceLimit is ${newSqrtPriceLimit}`);
+
+    console.log(`Current sqrtPriceX96: ${slot0[0]}`);
+    console.log(`Current tick: ${slot0[1]}`);
+
+    const amountInn = ethers.parseUnits("50", 18);
+    const quoteParams = {
+      tokenIn: token.address,
+      tokenOut: tokenM.address,
+      amount: amountInn,
+      fee: 500,
+      sqrtPriceLimitX96: newSqrtPriceLimit,
+    };
+    const {
+      amountIn,
+      sqrtPriceX96After,
+      initializedTicksCrossed,
+      gasEstimate,
+    } = await quoter.quoteExactOutputSingle.staticCall(quoteParams);
+    console.log(`the quote returned from the quoter is ${amountIn}`);
+    const swapRouterr = await deployments.get("SwapRouter");
+    const approval = await tokenN.approve(swapRouterr.address, amountIn);
+    console.log(`==== approved tokens ====`);
+    const deadline = Math.floor(Date.now() / 1000) + 120;
+
+    const swapParams = {
+      tokenIn: token.address,
+      tokenOut: tokenM.address,
+      fee: 500,
+      recipient: deployerr,
+      deadline: deadline,
+      amountOut: amountInn,
+      amountInMaximum: amountIn,
+      sqrtPriceLimitX96: sqrtPriceX96After,
+    };
+    const swap = await swapRouter.exactOutputSingle(swapParams);
+    //   struct ExactOutputSingleParams {
+    //     address tokenIn;
+    //     address tokenOut;
+    //     uint24 fee;
+    //     address recipient;
+    //     uint256 deadline;
+    //     uint256 amountOut;
+    //     uint256 amountInMaximum;
+    //     uint160 sqrtPriceLimitX96;
+    // }
+  });
+
+  it("should test the quoteExactOutput and and exactOutput", async () => {
+    const nDeployment = await deployments.get("TokenN");
+    const MDeployment = await deployments.get("TokenM");
+    const routerContract = await deployments.get("SwapRouter");
+    const path = ethers.solidityPacked(
+      ["address", "uint24", "address"],
+      [nDeployment.address, 500, MDeployment.address] // WETH -> DAI with a fee of 500 (0.05%)
+    );
+    const desiredAmountOut = ethers.parseUnits("10000", 18);
+    const {
+      amountIn,
+      sqrtPriceX96AfterList,
+      initializedTicksCrossedList,
+      gasEstimate,
+    } = await quoter.quoteExactOutput.staticCall(path, desiredAmountOut);
+    console.log(`the quote recieved for the quoteExactOutput is ${amountIn}`);
+    const approval = await tokenN.approve(routerContract.address, amountIn);
+    //   struct ExactOutputParams {
+    //     bytes path;
+    //     address recipient;
+    //     uint256 deadline;
+    //     uint256 amountOut;
+    //     uint256 amountInMaximum;
+    // }
+    const swapParams = {
+      path: path,
+      recipient: deployerr,
+      deadline: Math.floor(Date.now() / 1000) + 120,
+      amountOut: desiredAmountOut,
+      amountInMaximum: amountIn,
+    };
+    const swap = await swapRouter.exactOutput(swapParams);
+  });
+
+  it("should increase the liquidty of pool",async()=>{
+  //   struct IncreaseLiquidityParams {
+  //     uint256 tokenId;
+  //     uint256 amount0Desired;
+  //     uint256 amount1Desired;
+  //     uint256 amount0Min;
+  //     uint256 amount1Min;
+  //     uint256 deadline;
+  // }
+  const positionManagerr = await deployments.get("NonfungiblePositionManager")
+
+    const amount0 = ethers.parseUnits("1000",18)
+    const amount1 = amount0
+    const increaseLiquidityParams = {
+      tokenId : 1,
+      amount0Desired:amount0,
+      amount1Desired:amount1,
+      amount0Min:0,
+      amount1Min:0,
+      deadline:Math.floor(Date.now() / 1000) + 120
+    }
+    const approven = await tokenN.approve(positionManagerr.address,amount0);
+    const approvem = await tokenM.approve(positionManagerr.address,amount0);
+
+    console.log(`== increasing the liquidity ==`)
+    const increase = await positionManager.increaseLiquidity(increaseLiquidityParams,{value:0}) as unknown;
+    console.log(`== after liquidity increase == `)
+
+
+  })
+
+  it("should collect reward of the position",async()=>{
+  //   struct CollectParams {
+  //     uint256 tokenId;
+  //     address recipient;
+  //     uint128 amount0Max;
+  //     uint128 amount1Max;
+  // }
+  const balanceN = await tokenN.balanceOf(deployerr);
+  const balanceM = await tokenN.balanceOf(deployerr);
+  console.log(`the balance before collection is N: ${ethers.parseEther(balanceN.toString())} and M: ${ethers.parseEther(balanceM.toString())}`)
+
+  const collectParams = {
+    tokenId:1,
+    recipient:deployerr,
+    amount0Max:ethers.parseUnits("10",18),
+    amount1Max:ethers.parseUnits("10",18)
+  }
+
+  const { amount0,  amount1} = await positionManager.collect(collectParams)
+  // await collectCall.wait()
+  console.log(`the rewards : ${amount0} & : ${amount1}`)
+
+  const balanceNb = await tokenN.balanceOf(deployerr);
+  const balanceMb = await tokenN.balanceOf(deployerr);
+  console.log(`the balance before collection is N: ${ethers.parseEther(balanceNb.toString())} and M: ${ethers.parseEther(balanceMb.toString())}`)
+  })
 });

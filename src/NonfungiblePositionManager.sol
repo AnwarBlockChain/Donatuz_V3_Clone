@@ -16,6 +16,7 @@ import '@uniswap/v3-periphery/contracts/base/ERC721Permit.sol';
 import '@uniswap/v3-periphery/contracts/base/PeripheryValidation.sol';
 import '@uniswap/v3-periphery/contracts/base/SelfPermit.sol';
 import '@uniswap/v3-periphery/contracts/base/PoolInitializer.sol';
+import "hardhat/console.sol";
 
 /// @title NFT positions
 /// @notice Wraps Uniswap V3 positions in the ERC721 non-fungible token interface
