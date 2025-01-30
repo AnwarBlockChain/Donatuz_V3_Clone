@@ -57,7 +57,7 @@ const lowerAmount0 = amount0 * 0.95; // Decrease amount0 by 5%
 
   //
  
-  console.log(`the sqrt Ratio is ${sqrtPriceX96}`);
+  console.log(`the sqrt Ratio iss ${sqrtPriceX96}`);
   return {sqrtPriceX96,adjustedTickLower,adjustedTickUpper};
   
 };
